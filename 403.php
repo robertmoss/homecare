@@ -15,7 +15,7 @@
             <div id="outer">
                 <?php include('partials/header.php');?>
                 <div id="main" class="container">
-                    <h1>Sorry . . .</h1>
+                    <h1>Sorry!</h1>
                     <p>You are not authorized to access the requested resource.</p>
                     <p><a href="index.php">Return to Home Page</a></p>
                 </div>  
