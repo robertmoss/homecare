@@ -14,6 +14,7 @@ class Address extends DataEntity {
     
     public function getFields() {
         $fields = array(
+            array("addressTypeId","linkedentity",20,"addressType",false),
             array("addressLine1","string",200),
             array("addressLine2","string",200),
             array("city","string",50),
@@ -28,6 +29,9 @@ class Address extends DataEntity {
     }
     
     public function friendlyName($fieldName) {
+         if ($fieldName=="addressTypeId") {
+            return "Address Type";
+        }    
         if ($fieldName=="addressLine1") {
             return "Address Line 1";
         }

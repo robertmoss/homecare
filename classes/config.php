@@ -21,8 +21,8 @@ class Config {
 	public static $debug_filename = "/Library/WebServer/Logs/homecare_debug.log";
     
     // root of the application (used for client side URL creation)
-    public static $site_root = 'http://localhost/homecare';
-    public static $service_path = 'http://localhost/homecare/service';
+    public static $site_root = 'http://localhost/hc';
+    public static $service_path = 'http://localhost/hc/service';
 	
 	// specifies the file and class to use to access the CDN
 	public static $cdn_classfile = '/classes/core/cdn.php';

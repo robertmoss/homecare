@@ -95,6 +95,14 @@ class Utility {
 						$return[]= array($state,$state);		
 					}
 				break;
+            case "addressType":
+                $query = "select id,type from addressType where tenantID=" . Database::queryNumber($tenantID);
+                $result = Database::executeQuery($query);
+                while ($r=mysqli_fetch_array($result,MYSQLI_NUM))
+                {
+                    $return[] = $r;
+                }
+                break;
 			case "tenants":
                 if ($userID==1) {
     				$query = "select id,name from tenant";
@@ -195,7 +203,7 @@ class Utility {
                     }
                 break;
 			default:
-				echo "unknown list:" . $listID;
+				Log::debug("Utility:getList() called with unknown list type:" . $listID,10);
 				return false;
 		}
 		return $return;

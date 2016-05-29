@@ -88,7 +88,7 @@ class Forms {
                         case "picklist":
                             echo '<div class="form-group">';
                             echo $default_label;
-                            $size = $field[2]<4 ? 'col-sm-2' : 'col-sm-6';
+                            $size = $field[2]<4 ? 'col-sm-1' : 'col-sm-6';
                             echo '<div class="' . $size . '"><select id="txt' . $class->getName() . ucfirst($field[0]) . '" name="' . $field[0] . '" class="form-control">';
                             $list = Utility::getList($field[3],$tenantID,0);
                             foreach ($list as $r) {
@@ -103,10 +103,16 @@ class Forms {
                             echo '</div>';
                             break;
                         case "linkedentity":
+                            $collength = 6;
+                            if (count($field)>2) {
+                                if ($field[2]<50) {
+                                    $collength = 2;
+                                }
+                            }
                             echo '<div class="form-group">';
                             echo $default_label;
-                            echo '<div class="col-sm-6"><select id="' . $field[0] . '" name="' . $field[0] . '" class="form-control">';
-                            $list = Utility::getList($field[3],$tenantID);
+                            echo '<div class="col-sm-' . $collength . '"><select id="' . $field[0] . '" name="' . $field[0] . '" class="form-control">';
+                            $list = Utility::getList($field[3],$tenantID,0);
                             foreach ($list as $r) {
                                 $selected = "";
                                 if (($id>0 && $r[0]==$entity[$field[0]]) || ($id==0 && $r[0]==$parentid)) {
@@ -115,7 +121,7 @@ class Forms {
                                 echo '<option value="' . $r[0].'"' . $selected . '>' . $r[1] . '</option>';
                                 }
                             echo '</select></div>';
-                            if (isset($field[4])) {
+                            if (isset($field[4]) && $field[4]) {
                                 echo '<a href="#add' . $field[0]  . '" onclick="addSubEntity(\'add' . $field[0]  . '\');">Add New</a>'; 
                                 }
                             echo '</span></div>';

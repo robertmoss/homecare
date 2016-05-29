@@ -16,7 +16,8 @@ class Patient extends DataEntity {
         $fields = array(
             array("firstName","string",100),
             array("middleName","string",100),
-            array("lastName","string",100)
+            array("lastName","string",100), 
+            array("addresses","linkedentities","address", true,false)
         );      
         return $fields;
     }

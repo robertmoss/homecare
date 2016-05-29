@@ -7,7 +7,7 @@ include_once dirname(__FILE__) . '/../partials/pageCheck.php';
 include_once dirname(__FILE__) . '/../classes/core/service.php';
 include_once dirname(__FILE__) . '/../classes/core/dataentity.php';
 include_once dirname(__FILE__) . '/../classes/application.php';
-
+include_once dirname(__FILE__) . '/../classes/config.php';
     
  // must be an super user to access this page
  if ($userID==0 || ($user && !$user->hasRole('superuser',$tenantID))) {
@@ -42,6 +42,7 @@ if (strlen($type)<1) {
     include_once $classfile;
     $classname = ucfirst($type);    // class names start with uppercase
     $class = new $classname($userID,$tenantID); 
+    $tab = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp';
 
 ?>
 <!DOCTYPE html>
@@ -60,18 +61,105 @@ if (strlen($type)<1) {
     </head>
     <body>
         <div class="container">
-            <h2>Update</h2>
+            <h2>SQL for <?php echo $class->getName() ?></h2>
             <div class="well">
                 <code>
                     <?php
                     $tab = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp';
-                    echo 'CREATE PROCEDURE update' . $class->getName() . '(id int';
+                    echo '/* Stored Procedures for ' . $class->getName() . '*/<BR/><BR/>';
+                    
+                     /* GET proc */
+                    echo 'USE `' . Config::$database . '`;<br/>';
+                    echo 'DROP procedure IF EXISTS `get' . $class->getName() . 'ById`;<br/><br/>';
+                    echo 'DELIMITER $$<br/>';
+                    echo 'USE `' . Config::$database . '`$$<br/><br/>';
+                    echo 'CREATE PROCEDURE get' . $class->getName() . 'ById(id int, tenant int, userid int)<br/>';
+                    echo 'BEGIN<br/><br/>';
+                    echo $tab . 'SELECT id,<br/>';
                     $fieldarray = $class->getFields();
-                    $separator = ", ";
+                    $separator = $tab . $tab . "";
                     foreach ($fieldarray as $field) {
-                        echo $separator . $field[0] . ' ';
+                        if ($field[1]!="linkedentities") {
+                            echo $separator . $field[0];
+                            $separator = ',<br/>' . $tab . $tab;
+                        }
+                    }
+                    echo '<br/>' . $tab . 'FROM<BR/>'. $tab . $tab . $class->getName() . '<BR/>';
+                    echo $tab . ' WHERE<br/>' . $tab . $tab . "id=id AND tenantid=tenantid;<br/><br/>";
+                    echo 'END$$<br/>DELIMITER ;';
+                    echo '<br/><br/>';
+                    
+                    /* GET procs and table for any linked entities */
+                    foreach ($fieldarray as $field) {
+                        if ($field[1]=="linkedentities") {
+                             
+                             $tablename = lcfirst($class->getName()) . ucfirst($field[2]);
+                             echo 'CREATE TABLE IF NOT EXISTS `' . Config::$database . '`.`' . $tablename . '` (<br/>';
+                             echo $tab . 'id INT NOT NULL AUTO_INCREMENT,</br/>';
+                             echo $tab . lcfirst($class->getName()) . 'Id INT NOT NULL, <br/>';
+                             echo $tab . lcfirst($field[2]) . 'Id INT NOT NULL, <br/>';
+                             echo $tab . 'PRIMARY KEY (`id`),<br/>';
+                             echo $tab . 'INDEX `fk_' . $tablename . '_' . lcfirst($class->getName()) . '_idx` (`' . lcfirst($class->getName()) . 'Id` ASC),<br/>';
+                             echo $tab . 'INDEX `fk_' . $tablename . '_' . lcfirst($field[2]) . '_idx` (`' . lcfirst($field[2]) . 'Id` ASC),<br/>';
+                             echo $tab . 'CONSTRAINT `fk_' . $tablename . '_' . lcfirst($class->getName()) . '` FOREIGN KEY (`' . lcfirst($class->getName()) . 'Id`)<br/>';
+                             echo $tab . $tab . 'REFERENCES `' . Config::$database . '`.`' . lcfirst($class->getName()) . '` (`id`)<br/>';
+                             echo $tab . $tab . 'ON DELETE CASCADE<br/>';
+                             echo $tab . $tab . 'ON UPDATE NO ACTION,<br/>';
+                             echo $tab . 'CONSTRAINT `fk_' . $tablename . '_' . lcfirst($field[2]) . '` FOREIGN KEY (`' . lcfirst($field[2]) . 'Id`)<br/>';
+                             echo $tab . $tab . 'REFERENCES `' . Config::$database . '`.`' . lcfirst($field[2]) . '` (`id`)<br/>';
+                             echo $tab . $tab . 'ON DELETE CASCADE<br/>';
+                             echo $tab . $tab . 'ON UPDATE NO ACTION);<br/>';               
+                             echo $tab . '<br/>';
+                            
+                             $procname = 'get' . ucfirst($field[0])  . 'By' . $class->getName(). 'Id';
+                             $classname = ucfirst($field[2]);    // class names start with uppercase
+                             $classpath = '/../classes/'; 
+                             $classfile = dirname(__FILE__) . $classpath . lcfirst($classname) . '.php';
+                             include_once $classfile;
+                             $subclass = new $classname($userID,$tenantID);
+                             $subfieldarray = $subclass->getFields();
+                             
+                             echo 'USE `' . Config::$database . '`;<br/>';
+                             echo 'DROP procedure IF EXISTS `' . $procname . '`;<br/><br/>';
+                             echo 'DELIMITER $$<br/>';
+                             echo 'USE `' . Config::$database . '`$$<br/><br/>';
+                             echo 'CREATE PROCEDURE ' . $procname . '(_id int, _tenantid int, userid int)<br/>';
+                             echo 'BEGIN<br/><br/>';
+                             echo $tab . 'SELECT<br/>';
+                             echo $tab . $tab . 'T1.id';
+                             foreach ($subfieldarray as $subfield) {
+                                 echo ',<br/>' . $tab . $tab . 'T1.' . $subfield[0];
+                             }
+                             echo $tab . '<br/>FROM<br/>';
+                             echo $tab . $tab . lcfirst($field[2]) . ' T1<br/>';
+                             echo $tab . $tab . 'INNER JOIN ' .  $tablename . ' T2 ON T1.id=T2.'.lcfirst($field[2]) . 'Id<br/>' ;
+                             echo $tab . 'WHERE<br/>';
+                             echo $tab . $tab . 'T2.' . lcfirst($class->getName()) . 'Id=_id<br/>';
+                             echo $tab . $tab . 'and T1.tenantid=_tenantid;<br/><br/>';
+                             echo 'END$$<br/>DELIMITER ;';
+                             echo '<br/><br/>';
+                             
+                             
+                             
+                        }
+                    }
+                    
+                    /* ADD proc */
+                    echo 'USE `' . Config::$database . '`;<br/>';
+                    echo 'DROP procedure IF EXISTS `add' . $class->getName() . '`;<br/><br/>';
+                    echo 'DELIMITER $$<br/>';
+                    echo 'USE `' . Config::$database . '`$$<br/><br/>';
+                    echo 'CREATE PROCEDURE add' . $class->getName() . '(';
+                    $fieldarray = $class->getFields();
+                    $separator = "";
+                    foreach ($fieldarray as $field) {
+                        if ($field[1]!="linkedentities") {
+                            echo $separator . $field[0] . ' ';
+                            $separator = ", ";
+                        }
                         switch ($field[1]) {
                             case "string":
+                            case "picklist":
                                if (!$field[2] || $field[2]==0 ) {
                                    $length = 0;
                                }
@@ -89,9 +177,77 @@ if (strlen($type)<1) {
                                 break;
                             case "date":
                                 break;
+                            case "linkedentity":
+                                echo 'int';
+                                break;
+                            case "linkedentities":
+                                break;
+                            case "custom":
+                                break;
+                            }
+
+                        }
+                    echo ", tenantid int)<br/>";
+                    echo 'BEGIN<br/>';
+                    echo '<br/>';
+                    echo $tab . 'INSERT INTO ' . lcfirst($class->getName()) . ' (<br/>';
+                    $separator = $tab . $tab;
+                    foreach ($fieldarray as $field) {
+                        if ($field[1]!="linkedentities") {
+                            echo $separator . $field[0];
+                            $separator = ',<br/>' . $tab . $tab;
+                            }
+                        }
+                    echo ', tenantid)<br/>' . $tab . 'VALUES (';
+                    $separator="";
+                    foreach ($fieldarray as $field) {
+                        if ($field[1]!="linkedentities") {
+                            echo $separator . $field[0] ;
+                            $separator = ',<br/>' . $tab . $tab;
+                            }
+                        }
+                    echo ', tenantid);';
+                    echo '<br/><br/>';
+                    echo $tab . 'SELECT Last_Insert_ID() as newID;';
+                    echo '<br/><br/>';
+                    echo 'END$$<br/>DELIMITER ;';
+ 
+                    echo '<br/><br/>';
+ 
+                    $tab = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp';
+                     echo 'USE `' . Config::$database . '`;<br/>';
+                    echo 'DROP procedure IF EXISTS `update' . $class->getName() . '`;<br/><br/>';
+                    echo 'DELIMITER $$<br/>';
+                    echo 'USE `' . Config::$database . '`$$<br/><br/>';
+                    echo 'CREATE PROCEDURE update' . $class->getName() . '(id int';
+                    $fieldarray = $class->getFields();
+                    $separator = ", ";
+                    foreach ($fieldarray as $field) {
+                        if ($field[1]!="linkedentities") {
+                            echo $separator . $field[0] . ' ';
+                        }
+                        switch ($field[1]) {
+                            case "string":
                             case "picklist":
+                               if (!$field[2] || $field[2]==0 ) {
+                                   $length = 0;
+                               }
+                               else {
+                                   $length = $field[2];
+                               } 
+                               echo 'varchar(' . $length . ')';
+                                break;
+                            case "json":
+                                break;
+                            case "boolean":
+                                break;
+                            case "number":
+                            case "hidden":
+                                break;
+                            case "date":
                                 break;
                             case "linkedentity":
+                                echo 'int';
                                 break;
                             case "linkedentities":
                                 break;
@@ -105,16 +261,19 @@ if (strlen($type)<1) {
                     echo $tab . 'UPDATE ' . lcfirst($class->getName()) . ' SET<br/>';
                     $separator = $tab . $tab;
                     foreach ($fieldarray as $field) {
-                        echo $separator . $field[0] . ' = ' . $field[0];
-                        
-                        $separator = ',<br/>' . $tab . $tab;
+                        if ($field[1]!="linkedentities") {
+                            echo $separator . $field[0] . ' = ' . $field[0];
+                            $separator = ',<br/>' . $tab . $tab;
+                            }
                         }
                     echo '<br/>';
                     echo $tab . 'WHERE';
                     echo '<br/>';
                     echo $tab . $tab . "id=id<br/>";
                     echo $tab . $tab . "AND tenantid=tenantid;<br/>";
-                    echo 'END<br/>';
+                    echo 'END$$<br/>DELIMITER ;';
+                    echo '<BR/></BR>/* End ' . $class->getName() . ' stored procs */<BR/><BR/>';
+                    
                     ?>
                 </code>
             </div>
